@@ -4,6 +4,10 @@ import pandas as pd
 import yfinance as yf
 
 def dcf_valuation(cash_flows, discount_rate, terminal_growth, years=5):
+    if discount_rate <= terminal_growth:
+        st.error("Discount rate must be greater than the terminal growth rate to avoid division errors.")
+        return None
+
     discount_factors = [(1 / (1 + discount_rate)) ** i for i in range(1, years + 1)]
     present_values = [cf * df for cf, df in zip(cash_flows, discount_factors)]
     terminal_value = (cash_flows[-1] * (1 + terminal_growth)) / (discount_rate - terminal_growth)
@@ -17,12 +21,27 @@ st.title("DCF Valuation Dashboard")
 
 # Inputs
 st.sidebar.header("Financial Inputs")
-ticker = st.sidebar.text_input("Enter Stock Ticker (e.g., AAPL)", value="AAPL")
+ticker = st.sidebar.text_input("Enter Stock Ticker (e.g., AAPL)", value="AAPL").upper()
 
 # Fetch data from Yahoo Finance
-data = yf.Ticker(ticker)
-cash_flow_data = data.cashflow
-initial_cash_flow = cash_flow_data.iloc[0, 0] if not cash_flow_data.empty else 100.0
+try:
+    data = yf.Ticker(ticker)
+    cash_flow_data = data.cashflow
+
+    # Extract the latest available Free Cash Flow (FCF)
+    if not cash_flow_data.empty:
+        initial_cash_flow = cash_flow_data.loc["Total Cash From Operating Activities"].values[0]
+    else:
+        initial_cash_flow = 100.0  # Default if data isn't available
+
+    # Get stock price & market cap
+    stock_price = data.history(period="1d")["Close"].iloc[-1] if "Close" in data.history(period="1d") else None
+    market_cap = data.info.get("marketCap", "N/A")
+
+except Exception as e:
+    st.error(f"Error fetching data for {ticker}: {e}")
+    initial_cash_flow = 100.0
+    stock_price, market_cap = None, "N/A"
 
 growth_rate = st.sidebar.number_input("Annual Growth Rate (%)", value=5.0, step=0.5) / 100
 discount_rate = st.sidebar.number_input("Discount Rate (%)", value=10.0, step=0.5) / 100
@@ -34,7 +53,15 @@ cash_flows = [initial_cash_flow * (1 + growth_rate) ** i for i in range(1, years
 total_value = dcf_valuation(cash_flows, discount_rate, terminal_growth, years)
 
 st.subheader("Valuation Results")
-st.write(f"**Intrinsic Value (Total Enterprise Value):** ${total_value:.2f} million")
+if total_value:
+    st.write(f"**Intrinsic Value (Total Enterprise Value):** ${total_value:,.2f} million")
+
+    if market_cap != "N/A" and stock_price is not None:
+        st.write(f"**Market Cap:** ${market_cap:,.2f}")
+        st.write(f"**Current Stock Price:** ${stock_price:,.2f}")
+
+        fair_value_per_share = total_value / (market_cap / stock_price)
+        st.write(f"**Fair Value per Share (DCF Estimate):** ${fair_value_per_share:,.2f}")
 
 # Data Visualization
 st.subheader("Projected Cash Flows")
