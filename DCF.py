@@ -93,7 +93,7 @@ if total_value:
         # Convert to USD if necessary
         if is_indonesian_stock and exchange_rate:
             total_value_usd = total_value / exchange_rate
-            st.write(f"**Intrinsic Value in USD:** $ {total_value_usd:,.2f} million")
+            st.write(f"**Intrinsic Value in USD:** $ {total_value_usd:,.2f}")
 
 # Data Visualization
 st.subheader("Projected Cash Flows")
