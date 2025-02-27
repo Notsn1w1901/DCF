@@ -28,9 +28,16 @@ try:
     data = yf.Ticker(ticker)
     cash_flow_data = data.cashflow
 
-    # Extract the latest available Free Cash Flow (FCF)
+    # Ensure cash flow data is not empty before extracting FCF
     if not cash_flow_data.empty:
-        initial_cash_flow = cash_flow_data.loc["Total Cash From Operating Activities"].values[0]
+        available_rows = cash_flow_data.index.astype(str).tolist()  # Convert index to string for safety
+        fcf_row = next((row for row in available_rows if "Operating" in row or "Cash" in row), None)
+        
+        if fcf_row:
+            initial_cash_flow = cash_flow_data.loc[fcf_row].values[0]  # Take the latest available value
+        else:
+            initial_cash_flow = 100.0  # Fallback default
+
     else:
         initial_cash_flow = 100.0  # Default if data isn't available
 
