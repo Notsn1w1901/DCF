@@ -74,11 +74,11 @@ total_value = dcf_valuation(cash_flows, discount_rate, terminal_growth, years)
 # Display Valuation Results
 st.subheader("Valuation Results")
 if total_value:
-    formatted_value = f"{currency_symbol} {total_value / 1_000_000_000:,.2f} billion" if is_indonesian_stock else f"{currency_symbol} {total_value:,.2f} million"
+    formatted_value = f"{currency_symbol} {total_value:,.2f}"
     st.write(f"**Intrinsic Value (Total Enterprise Value):** {formatted_value}")
 
     if market_cap is not None and stock_price is not None:
-        formatted_market_cap = f"{currency_symbol} {market_cap / 1_000_000_000:,.2f} billion" if is_indonesian_stock else f"{currency_symbol} {market_cap / 1_000_000:,.2f} million"
+        formatted_market_cap = f"{currency_symbol} {market_cap:,.2f}"
         formatted_stock_price = f"{currency_symbol} {stock_price:,.2f}"
 
         st.write(f"**Market Cap:** {formatted_market_cap}")
