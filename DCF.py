@@ -65,7 +65,7 @@ except Exception as e:
 growth_rate = st.sidebar.number_input("Annual Growth Rate (%)", value=5.0, step=0.5) / 100
 discount_rate = st.sidebar.number_input("Discount Rate (%)", value=10.0, step=0.5) / 100
 terminal_growth = st.sidebar.number_input("Terminal Growth Rate (%)", value=2.0, step=0.5) / 100
-years = st.sidebar.slider("Projection Years", min_value=3, max_value=10, value=5)
+years = st.sidebar.slider("Projection Years", min_value=1, max_value=10, value=5)
 
 # Generate Future Cash Flows
 cash_flows = [initial_cash_flow * (1 + growth_rate) ** i for i in range(1, years + 1)]
