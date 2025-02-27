@@ -65,7 +65,7 @@ total_value = dcf_valuation(cash_flows, discount_rate, terminal_growth, years)
 
 st.subheader("Valuation Results")
 if total_value:
-    formatted_value = f"{currency_symbol} {total_value:,.2f} million"
+    formatted_value = f"{currency_symbol} {total_value:,.2f}"
     st.write(f"**Intrinsic Value (Total Enterprise Value):** {formatted_value}")
 
     if market_cap is not None and stock_price is not None:
