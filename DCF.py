@@ -39,32 +39,27 @@ try:
     data = yf.Ticker(ticker)
     cash_flow_data = data.cashflow
 
-    # Extracting Free Cash Flow (FCF) safely
-    if not cash_flow_data.empty:
-        available_rows = cash_flow_data.index.astype(str).tolist()
-        fcf_row = next((row for row in available_rows if "Operating" in row or "Cash" in row), None)
+    # Extracting Free Cash Flow (FCF)
+    initial_cash_flow = 100.0 if cash_flow_data.empty else cash_flow_data.iloc[0, 0]
 
-        if fcf_row:
-            initial_cash_flow = cash_flow_data.loc[fcf_row].values[0]
-        else:
-            initial_cash_flow = 100.0  # Default fallback
-    else:
-        initial_cash_flow = 100.0  # Default if data is missing
-
-    # Get stock price & market cap safely
+    # Get stock price & market cap
     stock_history = data.history(period="1d")
-    stock_price = stock_history["Close"].iloc[-1] if "Close" in stock_history and not stock_history.empty else None
+    stock_price = stock_history["Close"].iloc[-1] if not stock_history.empty else None
     market_cap = data.info.get("marketCap", None)
 
 except Exception as e:
     st.error(f"Error fetching data for {ticker}: {e}")
-    initial_cash_flow = 100.0
-    stock_price, market_cap = None, None
+    initial_cash_flow, stock_price, market_cap = 100.0, None, None
 
 # User Inputs for Growth Rates & Discounting
+st.sidebar.markdown("_Typical Growth Rates: Mature (2-5%), High Growth (10-15%)_")
+st.sidebar.markdown("_Typical Discount Rate: Risk-Free Rate + 4-6% Equity Premium_")
+
 growth_rate = st.sidebar.number_input("Annual Growth Rate (%)", value=5.0, step=0.5) / 100
 discount_rate = st.sidebar.number_input("Discount Rate (%)", value=10.0, step=0.5) / 100
-terminal_growth = st.sidebar.number_input("Terminal Growth Rate (%)", value=2.0, step=0.5) / 100
+
+default_terminal_growth = 0.04 if is_indonesian_stock else 0.02  # GDP-based assumption
+terminal_growth = st.sidebar.number_input("Terminal Growth Rate (%)", value=default_terminal_growth * 100, step=0.5) / 100
 years = st.sidebar.slider("Projection Years", min_value=1, max_value=10, value=5)
 
 # Generate Future Cash Flows
@@ -77,20 +72,18 @@ if total_value:
     formatted_value = f"{currency_symbol} {total_value:,.2f}"
     st.write(f"**Intrinsic Value (Total Enterprise Value):** {formatted_value}")
 
-    if market_cap is not None and stock_price is not None:
+    if market_cap and stock_price and market_cap > 0:
+        shares_outstanding = market_cap / stock_price  # Correct shares calculation
+        fair_value_per_share = total_value / shares_outstanding
+        
         formatted_market_cap = f"{currency_symbol} {market_cap:,.2f}"
         formatted_stock_price = f"{currency_symbol} {stock_price:,.2f}"
-
+        formatted_fair_value = f"{currency_symbol} {fair_value_per_share:,.2f}"
+        
         st.write(f"**Market Cap:** {formatted_market_cap}")
         st.write(f"**Current Stock Price:** {formatted_stock_price}")
+        st.write(f"**Fair Value per Share (DCF Estimate):** {formatted_fair_value}")
 
-        # Fair value per share
-        if market_cap > 0 and stock_price > 0:
-            fair_value_per_share = total_value / (market_cap / stock_price)
-            formatted_fair_value = f"{currency_symbol} {fair_value_per_share:,.2f}"
-            st.write(f"**Fair Value per Share (DCF Estimate):** {formatted_fair_value}")
-
-        # Convert to USD if necessary
         if is_indonesian_stock and exchange_rate:
             total_value_usd = total_value / exchange_rate
             st.write(f"**Intrinsic Value in USD:** $ {total_value_usd:,.2f}")
@@ -100,4 +93,4 @@ st.subheader("Projected Cash Flows")
 df = pd.DataFrame({"Year": list(range(1, years + 1)), "Cash Flow": cash_flows})
 st.line_chart(df.set_index("Year"))
 
-st.write(f"**Formula Used:** DCF = Sum(PV of future cash flows) + PV of terminal value")
+st.write("**Formula Used:** DCF = Sum(PV of future cash flows) + PV of terminal value")
