@@ -27,21 +27,23 @@ ticker = st.sidebar.text_input("Enter Stock Ticker (e.g., AAPL or BBRI.JK)", val
 is_indonesian_stock = ticker.endswith(".JK")
 currency_symbol = "Rp." if is_indonesian_stock else "$"
 
+# Fetch exchange rate (optional feature)
+try:
+    if is_indonesian_stock:
+        exchange_rate = yf.Ticker("USDIDR=X").history(period="1d")["Close"].iloc[-1]
+    else:
+        exchange_rate = 1  # USD-based stocks, no conversion needed
+except:
+    exchange_rate = None
+
 # Fetch data from Yahoo Finance
 try:
     data = yf.Ticker(ticker)
     cash_flow_data = data.cashflow
 
     # Ensure cash flow data is not empty before extracting FCF
-    if not cash_flow_data.empty:
-        available_rows = cash_flow_data.index.astype(str).tolist()  # Convert index to string for safety
-        fcf_row = next((row for row in available_rows if "Operating" in row or "Cash" in row), None)
-        
-        if fcf_row:
-            initial_cash_flow = cash_flow_data.loc[fcf_row].values[0]  # Take the latest available value
-        else:
-            initial_cash_flow = 100.0  # Fallback default
-
+    if not cash_flow_data.empty and "Total Cash From Operating Activities" in cash_flow_data.index:
+        initial_cash_flow = cash_flow_data.loc["Total Cash From Operating Activities"].values[0]
     else:
         initial_cash_flow = 100.0  # Default if data isn't available
 
@@ -65,20 +67,36 @@ total_value = dcf_valuation(cash_flows, discount_rate, terminal_growth, years)
 
 st.subheader("Valuation Results")
 if total_value:
-    formatted_value = f"{currency_symbol} {total_value:,.2f}"
+    # Convert to billions for better readability
+    if is_indonesian_stock:
+        formatted_value = f"{currency_symbol} {total_value / 1_000_000_000:,.2f} billion"
+    else:
+        formatted_value = f"{currency_symbol} {total_value:,.2f} million"
+
     st.write(f"**Intrinsic Value (Total Enterprise Value):** {formatted_value}")
 
     if market_cap is not None and stock_price is not None:
-        formatted_market_cap = f"{currency_symbol} {market_cap / 1_000_000:,.2f} million"  # Convert to millions
+        # Convert market cap to billions for IDR stocks
+        if is_indonesian_stock:
+            formatted_market_cap = f"{currency_symbol} {market_cap / 1_000_000_000:,.2f} billion"
+        else:
+            formatted_market_cap = f"{currency_symbol} {market_cap / 1_000_000:,.2f} million"
+
         formatted_stock_price = f"{currency_symbol} {stock_price:,.2f}"
 
         st.write(f"**Market Cap:** {formatted_market_cap}")
         st.write(f"**Current Stock Price:** {formatted_stock_price}")
 
-        # Fair value per share
-        fair_value_per_share = total_value / (market_cap / stock_price)
-        formatted_fair_value = f"{currency_symbol} {fair_value_per_share:,.2f}"
-        st.write(f"**Fair Value per Share (DCF Estimate):** {formatted_fair_value}")
+        # Fair value per share (only calculate if values are valid)
+        if market_cap > 0 and stock_price > 0:
+            fair_value_per_share = total_value / (market_cap / stock_price)
+            formatted_fair_value = f"{currency_symbol} {fair_value_per_share:,.2f}"
+            st.write(f"**Fair Value per Share (DCF Estimate):** {formatted_fair_value}")
+
+        # Optional: Convert to USD for better comparison
+        if is_indonesian_stock and exchange_rate:
+            total_value_usd = total_value / exchange_rate
+            st.write(f"**Intrinsic Value in USD:** $ {total_value_usd:,.2f} million")
 
 # Data Visualization
 st.subheader("Projected Cash Flows")
